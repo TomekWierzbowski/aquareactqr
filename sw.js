@@ -6,7 +6,7 @@
    klient i TEST2 siedzą pod jednym origin (GitHub Pages), więc filtr „wszystko poza moją wersją"
    kasował cache drugiej aplikacji i zostawiał ją bez plików do startu offline (zmierzone przez Astrę). */
 const RODZINA = 'qr-basen-hmi-';
-const WERSJA = RODZINA + '6f307ddb73';
+const WERSJA = RODZINA + '7c91bd7de7';
 const PLIKI = ['./', './index.html', './hmi.html', './most_js.js', './mqtt.min.js', './paho_na_mqttjs.js', './wykres_temp.js', './parowanie.js',
                './manifest.webmanifest', './ikona-192.png', './ikona-512.png', './ikona-maskable-512.png'];
 /* [Astra 15, 29.09.2026] SPÓJNY PAKIET, OKREŚLONY EKRAN, DANE BEZ PAMIĘCI
