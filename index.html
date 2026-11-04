@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="pl"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2a2e35">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="ikona-192.png">
+<title>AquareactQR</title>
+<!-- STRONA STARTOWA APLIKACJI [D-270]: logowanie do brokera (raz, telefon pamięta),
+     sprawdzenie połączenia PRZED wejściem w HMI (złe hasło ma mieć zdanie, nie pusty
+     ekran - zasada 10), przycisk „Zainstaluj” (Android/Chrome) i podpowiedź dla iPhone'a.
+     Wygląd: te same barwy, co ekran użytkownika (--ink/--page/--card). -->
+<style>
+  :root{ --ink:#14161a; --ink2:#5d6470; --line:#dfe3e8; --page:#eef1f4; --card:#fff; --ok:#1b7f3a; --zle:#b3261e; --woda:#1e6fd9; }
+  html,body{ margin:0; background:var(--page); color:var(--ink); font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  main{ max-width:420px; margin:0 auto; padding:28px 18px 40px; }
+  h1{ font-size:22px; margin:8px 0 2px; letter-spacing:.2px; } .pod{ color:var(--ink2); margin:0 0 22px; font-size:14px; }
+  .karta{ background:var(--card); border-radius:14px; padding:18px; box-shadow:0 1px 2px rgba(20,22,26,.06),0 8px 24px rgba(20,22,26,.06); margin-bottom:14px; }
+  label{ display:block; font-size:13px; color:var(--ink2); margin:10px 0 4px; }
+  input[type=text],input[type=password]{ width:100%; box-sizing:border-box; font:inherit; padding:11px 12px; border:1px solid var(--line); border-radius:10px; background:#fafbfc; }
+  input:focus{ outline:2px solid var(--woda); outline-offset:1px; }
+  .rz{ display:flex; gap:10px; align-items:center; margin-top:14px; }
+  button{ font:600 16px/1 system-ui,sans-serif; padding:13px 18px; border:0; border-radius:12px; background:var(--woda); color:#fff; cursor:pointer; }
+  button.cichy{ background:#e6ebf0; color:var(--ink); }
+  button:disabled{ opacity:.55; cursor:default; }
+  .stan{ min-height:22px; font-size:14px; margin-top:12px; } .stan.ok{ color:var(--ok);} .stan.zle{ color:var(--zle);}
+  .ikona{ width:56px; height:56px; border-radius:14px; float:right; margin:-4px 0 0 12px; }
+  .mala{ font-size:13px; color:var(--ink2); } code{ background:#eef1f4; padding:1px 5px; border-radius:5px; }
+  .zapam{ display:flex; gap:8px; align-items:center; font-size:14px; margin-top:12px; }
+  #inst[hidden],#ios[hidden],#karta_inst[hidden]{ display:none; }
+  details.zaaw{margin-top:8px} details.zaaw summary{cursor:pointer;color:#5d6470;font-size:14px}
+</style></head>
+<body><main>
+  <img class="ikona" src="ikona-192.png" alt="">
+  <h1>AquareactQR</h1>
+  <p class="pod">HMI 1:1 z szafy — na telefonie.</p>
+
+  <div class="karta" id="parowanie" style="display:none"><div class="stan" id="parowanie_stan"></div></div>
+  <form class="karta" id="f" autocomplete="on">
+    <b>Twój sterownik</b>
+    <label for="nazwa">Nazwa sterownika</label>
+    <input type="text" id="nazwa" autocapitalize="words" autocorrect="off" spellcheck="false" autocomplete="username" placeholder="np. Gliczarów wanna">
+    <label for="pass">Hasło</label>
+    <input type="password" id="pass" autocomplete="current-password">
+    <details class="zaaw"><summary>zaawansowane</summary>
+      <label for="host">Serwer (broker)</label>
+      <input type="text" id="host" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <label for="user">Użytkownik brokera</label>
+      <input type="text" id="user" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <p class="mala">Powstaje z nazwy: małe litery bez polskich znaków, spacje → myślnik. Możesz go poprawić —
+      broker <b>rozróżnia wielkie i małe litery</b>, więc nazwę konta trzeba wpisać dokładnie tak, jak ją dostałeś.</p>
+      <label class="zapam" style="margin-top:10px"><input type="checkbox" id="serw"> konto serwisowe — widzę wszystkie sterowniki</label>
+      <p class="mala">Zaznacz TYLKO na własnym telefonie. Konto klienta widzi jeden obiekt — ten, którego nazwę podał serwis.</p>
+      <b style="display:block;margin-top:14px">Serwery zapasowe</b>
+      <p class="mala">Zostaw <b>puste — i tak ma być</b>. Po pierwszym połączeniu aplikacja <b>sama pobiera
+        adresy zapasowe ze sterownika</b> i zapamiętuje je na tym telefonie; wpisujesz tylko wtedy, gdy serwis
+        podał Ci inne dane. Aplikacja nie zgaduje adresów — pyta sterownik.</p>
+      <label for="host2">Zapas 1</label>
+      <input type="text" id="host2" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="pusto = pobiorę ze sterownika">
+      <p class="mala">Port dopisuje się po dwukropku, gdy jest inny niż zwykle: HiveMQ 8884, EMQX 8084 (dobieramy sam).</p>
+      <p class="mala">Konta zapasowe wyliczamy z Twojego loginu — do nazwy doklejamy numer serwera: <b>Master</b> → <b>Master2</b> i <b>Master3</b>, <b>wanna-gliczarow</b> → <b>wanna-gliczarow2</b> i <b>wanna-gliczarow3</b>. Hasło jest to samo na wszystkich trzech. Wpisane tu nazwy zawsze wygrywają.</p>
+      <label for="user2">Użytkownik zapasu 1</label>
+      <input type="text" id="user2" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="pusto = wyliczam z loginu">
+      <label for="pass2">Hasło zapasu 1</label>
+      <input type="password" id="pass2" autocomplete="off" placeholder="pusto = to samo hasło">
+      <label for="host3">Zapas 2</label>
+      <input type="text" id="host3" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="pusto = pobiorę ze sterownika">
+      <label for="user3">Użytkownik zapasu 2</label>
+      <input type="text" id="user3" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="pusto = wyliczam z loginu">
+      <label for="pass3">Hasło zapasu 2</label>
+      <input type="password" id="pass3" autocomplete="off" placeholder="pusto = to samo hasło">
+    </details>
+    <div class="zapam"><input type="checkbox" id="zap" checked><label for="zap" style="margin:0">zapamiętaj na tym telefonie</label></div>
+    <div class="rz"><button type="submit" id="idz">Otwórz HMI</button></div>
+    <div class="stan" id="stan"></div>
+    <p class="mala">Nazwę i hasło sterownika dostajesz od serwisu. Klient steruje temperaturą, grzaniem, światłem i atrakcjami; menu serwisowe wymaga PIN-u sterownika.</p>
+  </form>
+
+  <div class="karta" id="karta_inst">
+    <b>Aplikacja na ekranie głównym</b>
+    <p class="mala" id="inst_txt">Ikona na pulpicie, pełny ekran bez paska przeglądarki, działa też bez zasięgu (pokazuje ostatni stan).</p>
+    <div class="rz"><button type="button" id="inst" hidden>Zainstaluj</button></div>
+    <p class="mala" id="ios" hidden>iPhone/iPad: w Safari dotknij <b>Udostępnij</b> (kwadrat ze strzałką) → <b>Do ekranu początkowego</b>.</p>
+    <p class="mala" id="sw"></p>
+  </div>
+</main>
+<script>window.APKA_KLUCZ = 'qr:'; window.APKA_DROGA = 'mariaz';</script>   <!-- [B.0z-78] mariaz -->
+<script src="mqtt.min.js"></script>
+<script src="paho_na_mqttjs.js"></script>   <!-- [D-498] MQTT 5 pod API Paho -->
+<script src="parowanie.js"></script>   <!-- [D-554] parowanie kodem QR z drzwi szafy -->
+<script>
+(function(){
+  const el = id => document.getElementById(id);
+  const q = new URLSearchParams(location.search);
+  const HOST = 'aquareact.duckdns.org:8889', HOST2 = '';
+  /* [Astra 12] ta sama kolejnosc co w HMI: sesja tej karty (bez zapamietania) przed zapamietanym kontem */
+  let z = null; try { z = JSON.parse(sessionStorage.getItem('qr:odbior_mqtt') || localStorage.getItem('qr:odbior_mqtt') || 'null'); } catch(e){}
+  try { localStorage.setItem('qr:pwa', '1'); } catch(e){}
+  /* [D-554] PAROWANIE KODEM QR z drzwi szafy (#p= w adresie) - PRZED przekierowaniem zapamiętanego konta */
+  if (window.PAROWANIE && PAROWANIE.jest(location.hash)) {
+    const kartaP = el('parowanie'), stanP = el('parowanie_stan'), K = 'qr:odbior_mqtt';
+    kartaP.style.display = ''; el('f').style.display = 'none';
+    const Kl = window.Paho && (Paho.Client || (Paho.MQTT && Paho.MQTT.Client));
+    const Wi = window.Paho && (Paho.Message || (Paho.MQTT && Paho.MQTT.Message));
+    PAROWANIE.uruchom({ hash: location.hash, Klient: Kl, Wiadomosc: Wi,
+      pokaz: (klasa, tekst) => { stanP.className = 'stan' + (klasa ? ' ' + klasa : ''); stanP.textContent = tekst; },
+      zapisz: dane => { try { if (dane) { localStorage.setItem(K, JSON.stringify(dane)); sessionStorage.removeItem(K); }
+                              else localStorage.removeItem(K); } catch (e) {} },
+      czysc: () => { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} },
+      dalej: () => setTimeout(() => { location.href = 'hmi.html?mqtt=1'; }, 600),
+      losujId: () => Array.from(crypto.getRandomValues(new Uint8Array(8)), b => b.toString(16).padStart(2, '0')).join(''),
+      teraz: () => Date.now(), ustawCzas: (f, ms) => setTimeout(f, ms), wyczyscCzas: t => clearTimeout(t) })
+      .then(w => { if (!w.ok) el('f').style.display = ''; });
+    return;
+  }
+  /* zapamiętane dane i nikt nie prosił o ekran logowania -> prosto do HMI */
+  if (z && z.user && z.pass && q.get('login') !== '1') { location.replace('hmi.html?mqtt=1'); return; }
+  el('host').value = (z && z.host) || q.get('host') || HOST;
+  el('pass').value = (z && z.pass) || '';
+  /* NAZWA STEROWNIKA → użytkownik brokera [D-304]: „Gliczarów wanna" → „gliczarow-wanna"; każdy obiekt ma
+     własne konto na brokerze (dziś HiveMQ: konta w konsoli; docelowo Mosquitto na HA z ACL na prefiks tematu). */
+  const slug = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ł/g, 'l').replace(/Ł/g, 'L').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  /* [Astra 12] NAZWA OBIEKTU ≠ LOGIN: nazwa w KSZTAŁCIE loginu (litery, cyfry, - i _, bez spacji i ogonków) idzie
+     do loginu BEZ zmiany wielkości liter („Master" zostaje „Master" - broker rozróżnia); tylko nazwa opisowa
+     („Gliczarów wanna") zamienia się na login klienta małymi literami (D-304). */
+  const loginZNazwy = s => /^[A-Za-z0-9_-]+$/.test(String(s || '').trim()) ? String(s).trim() : slug(String(s || ''));
+  el('nazwa').value = (z && z.nazwa) || q.get('nazwa') || ((z && z.user) ? z.user : '');
+  el('user').value = (z && z.user) ? z.user : loginZNazwy(el('nazwa').value);
+  /* [D-312] konto serwisowe: jawny ptaszek zamiast zgadywania z kształtu loginu; stary zapis bez pola = dawna zasada */
+  el('serw').checked = (z && z.serwis !== undefined) ? !!z.serwis : (!!el('user').value && el('user').value.indexOf('-') < 0);
+  /* [D-317] drugi broker wypełnia się sam: adres z wbudowanej stałej, konto = to samo z dwójką, hasło to samo.
+     Zapisane wcześniej wartości mają pierwszeństwo; pusty adres znaczy „tylko pierwszy serwer". */
+  el('host2').value = (z && z.host2) || HOST2;   /* HOST2 jest dzis PUSTY - rezerwy nie zgadujemy [D-410] */
+  el('user2').value = (z && z.user2) || '';
+  el('pass2').value = (z && z.pass2) || '';
+  el('host3').value = (z && z.host3) || '';
+  el('user3').value = (z && z.user3) || '';
+  el('pass3').value = (z && z.pass3) || '';
+  /*  [D-326] NAZWA PRZESTAJE NADPISYWAC RECZNIE WPISANEGO UZYTKOWNIKA. Konto serwisowe nazywa sie
+      z wielkiej litery, a `slug()` robi z tego male litery - broker odpowiada wtedy „brak
+      uprawnien" (sprawdzone na obu: HiveMQ i EMQX). Kto raz poprawi pole, ten wie, co robi. */
+  let userRecznie = false, serwRecznie = false;
+  /*  [D-484, B.0z-38] PTASZEK NIE PRZEŻYWA ZMIANY KONTA. Zapamiętany „serwisowe" zostawał po przejściu
+      z konta serwisowego na klienckie - apka zapisywała się zakresem, którego nowe konto nie ma, i sypała
+      odmowami. Dopóki człowiek sam nie dotknie ptaszka, idzie on za kształtem loginu (myślnik = klient). */
+  el('serw').addEventListener('change', () => { serwRecznie = true; });
+  el('user').addEventListener('input', () => { userRecznie = (el('user').value.trim() !== '');
+    if (!serwRecznie) el('serw').checked = (!!el('user').value.trim() && el('user').value.trim().indexOf('-') < 0); });
+  el('nazwa').addEventListener('input', () => { if (!userRecznie) el('user').value = loginZNazwy(el('nazwa').value); });
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready).then(() => {
+      el('sw').textContent = 'Gotowa do pracy bez sieci: pliki aplikacji są zapisane w telefonie.';
+    }).catch(() => { el('sw').textContent = ''; });
+  }
+
+  /* „Zainstaluj”: Chrome/Edge na Androidzie dają zdarzenie beforeinstallprompt;
+     Safari na iOS nie - tam zostaje podpowiedź. W trybie standalone karta znika. */
+  const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  if (standalone) el('karta_inst').hidden = true;
+  let prompt = null;
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); prompt = e; el('inst').hidden = false; });
+  el('inst').onclick = async () => { if (!prompt) return; prompt.prompt(); try { await prompt.userChoice; } catch(e){} prompt = null; el('inst').hidden = true; };
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone) el('ios').hidden = false;
+  window.addEventListener('appinstalled', () => { el('inst_txt').textContent = 'Zainstalowana. Otwieraj z ikony na ekranie głównym.'; el('inst').hidden = true; });
+
+  /* PRÓBA POŁĄCZENIA przed wejściem: broker odpowiada kodem, kod ma zdanie */
+  /*  [D-434] KODY 4 I 5 ZNACZA TU TO SAMO: serwer nie przyjal logowania. Zmierzone na naszym
+      brokerze: „konta nie ma" i „zle haslo" zwracaja JEDEN kod (5; w MQTT 5 - 135), bo brokery
+      celowo nie zdradzaja, ktore konta istnieja. Dawny tekst dla 5 („brak uprawnien dla tego
+      uzytkownika") mowil, ze konto istnieje i brakuje mu praw - wiec czlowiek z literowka
+      w hasle szukal usterki po stronie serwisu zamiast poprawic pole. */
+  /*  ⛔ DWIE RÓŻNE NUMERACJE - DWA OSOBNE SŁOWNIKI [audyt 20.09.2026].
+      Do tej pory kod brał numer błędu BIBLIOTEKI i szukał go w tablicy kodów BROKERA. Efekt:
+      przekroczony czas łączenia (Paho 1) meldował się jako „broker nie zna tej wersji
+      protokołu", a błąd wewnętrzny biblioteki (Paho 5) jako „zły login albo hasło" - człowiek
+      poprawiał hasło, które było dobre.
+      ⚠ KODY[] wolno użyć WYŁĄCZNIE wtedy, gdy liczba przyszła OD BROKERA, czyli z treści
+        odpowiedzi („return code: N"). Numer biblioteki mówi o czymś zupełnie innym. */
+  const KODY = { 1: 'broker nie zna tej wersji protokołu', 2: 'odrzucony identyfikator klienta', 3: 'broker niedostępny',
+                 4: 'zły login albo hasło', 5: 'zły login albo hasło' };
+  /*  Numery WŁASNE biblioteki Paho (paho-mqtt.min.js) - o awarii drogi, nie o koncie. */
+  const PAHO = { 1: 'przekroczony czas łączenia - broker nie odpowiedział', 2: 'połączenie zerwane',
+                 3: 'nie udało się otworzyć połączenia - sprawdź adres i port',
+                 4: 'brak odpowiedzi brokera', 5: 'błąd wewnętrzny aplikacji',
+                 6: 'broker odrzucił połączenie', 7: 'nieznany błąd połączenia' };
+  const LOGOWANIE = rc => rc === 4 || rc === 5;
+  el('f').onsubmit = ev => {
+    ev.preventDefault();
+    const host = el('host').value.trim(), nazwa = el('nazwa').value.trim(), pass = el('pass').value;
+    /*  [D-326] bierzemy to, CO STOI W POLU (może być poprawione ręcznie), a gdy puste - liczymy z nazwy */
+    const user = el('user').value.trim() || loginZNazwy(nazwa);
+    const stan = el('stan'); stan.className = 'stan';
+    if (!host || !user || !pass) { stan.className = 'stan zle'; stan.textContent = 'Wpisz nazwę sterownika i hasło.'; return; }
+    const Klient = window.Paho && (Paho.Client || (Paho.MQTT && Paho.MQTT.Client));
+    if (!Klient) { stan.className = 'stan zle'; stan.textContent = 'Brak biblioteki MQTT (mqtt.min.js) — odśwież stronę przy zasięgu.'; return; }
+    el('idz').disabled = true; stan.textContent = 'Łączę z brokerem…';
+    /*  PORT Z ADRESU, NIE NA SZTYWNO [D-327]: było tu wpisane 8884 (HiveMQ), więc adres EMQX
+        (8084) nie miał szans przejść próby. Ta sama zasada, co w most_js: port po dwukropku
+        wygrywa, potem rozpoznajemy dostawcę, a na końcu zostaje HiveMQ. */
+    const adres = (txt, domyslny) => { const s = String(txt || '').trim().replace(/^wss?:\/\//, '').replace(/\/.*$/, '');
+      const i = s.lastIndexOf(':');
+      if (i > 0 && /^\d+$/.test(s.slice(i + 1))) return { host: s.slice(0, i), port: +s.slice(i + 1) };
+      return { host: s, port: domyslny || (/emqxsl\.com$/i.test(s) ? 8084 : 8884) }; };
+    /*  [Astra T01, 30.09.2026] PÓŹNY SUKCES WYGRYWA. Drzwi mają sztywne 9 s, a nakładka apki T3 przy nieudanym
+        QUIC próbuje potem WSS (najgorzej 4 + 7 = 11 s). Połączenie w 10. sekundzie trafiało w zamknięte już
+        „żaden serwer nie odpowiada” i było ignorowane - klient na słabym zasięgu widział porażkę, choć sieć działała
+        (test Astry audyt-offline.cjs T01 odtwarzał to jeszcze na 70e2efd3c9). Teraz: porażka pokazuje się po 9 s jak
+        dotąd, ale sukces, który przyjdzie później, zmienia komunikat i otwiera HMI. Po sukcesie nic już go nie cofa. */
+    let gotowe = false, udane = false;
+    const koniec = (ok, txt) => { if (udane || (gotowe && !ok)) return; gotowe = true; if (ok) udane = true; el('idz').disabled = false;
+      stan.className = 'stan ' + (ok ? 'ok' : 'zle'); stan.textContent = txt;
+      if (ok) { const serwis = el('serw').checked;
+                const host2 = el('host2').value.trim(), user2 = el('user2').value.trim(), pass2 = el('pass2').value;
+                const host3 = el('host3').value.trim(), user3 = el('user3').value.trim(), pass3 = el('pass3').value;
+                const dane = { host, user, pass, nazwa, serwis, host2, user2, pass2, host3, user3, pass3 };
+                /* [Astra 12] bez „zapamietaj" = TYLKO ta karta: sessionStorage pod tym samym kluczem z przedrostkiem apki
+                   (HMI czyta go przed zapamietanym kontem); z „zapamietaj" = localStorage, a sesyjny wpis znika,
+                   zeby nie zaslonil swiezo zapamietanego konta. Hasla bez zgody nie zostawiamy na stale. */
+                try { if (el('zap').checked) { localStorage.setItem('qr:odbior_mqtt', JSON.stringify(dane)); sessionStorage.removeItem('qr:odbior_mqtt'); }
+                      else sessionStorage.setItem('qr:odbior_mqtt', JSON.stringify(dane)); } catch(e){}
+                setTimeout(() => location.href = 'hmi.html?mqtt=1', 400); } };
+    setTimeout(() => koniec(false, 'Żaden serwer nie odpowiada w 9 s — sprawdź zasięg i nazwę serwera.'), 9000);
+    /*  PRÓBUJEMY OBU SERWERÓW NARAZ [D-327, uwaga z audytu]: aplikacja od D-313 słucha dwóch brokerów,
+        ale te drzwi sprawdzały tylko pierwszy - jego awaria zamykała wejście, choć drugi działał.
+        Wpuszczamy, gdy KTÓRYKOLWIEK wpuści; gdy oba odmówią, pokazujemy, co powiedział pierwszy
+        (a jeśli milczał - co powiedział drugi). Dane zapisujemy te same, co dotąd. */
+    /*  ⚠ TA SAMA KONWENCJA CO W APCE [D-416]: do nazwy dokleja sie numer serwera (`Master` ->
+        `Master2` na zapasowym). Drzwi musza probowac TYM SAMYM kontem, ktorym potem laczy sie
+        aplikacja - inaczej wpuszczaja i zaraz odmawiaja, albo odwrotnie, a czlowiek nie wie,
+        ktore zdanie jest prawdziwe. */
+    /*  ⛔ WSZYSTKIE SKONFIGUROWANE SERWERY, NIE DWA [audyt 20.09.2026]. Do tej pory drzwi
+        próbowały wyłącznie `host` i `host2`; dane zapasu 2 były zapisywane przy sukcesie, ale
+        w samym logowaniu nie brały udziału - więc gdy działał TYLKO zapas 2, nie było jak wejść,
+        chociaż HMI potrafi z niego korzystać. Jedna lista, jedne reguły: wpuszcza KTÓRYKOLWIEK.
+        ⚠ Nazwy prób są TE SAME, co etykiety pól na ekranie („Zapas 1", „Zapas 2") - wcześniej
+          komunikat mówił „serwer 2" o polu podpisanym „Zapas 1" i odsyłał człowieka do rubryki
+          o innej nazwie. */
+    const drugi  = { host: el('host2').value.trim(), user: el('user2').value.trim() || (user ? user + '2' : ''),
+                     pass: el('pass2').value || pass };
+    const trzeci = { host: el('host3').value.trim(), user: el('user3').value.trim() || (user ? user + '3' : ''),
+                     pass: el('pass3').value || pass };
+    const proby = [{ nazwa: 'serwer główny', host: host, user: user, pass: pass }];
+    if (drugi.host  && drugi.user)  proby.push({ nazwa: 'zapas 1', host: drugi.host,  user: drugi.user,  pass: drugi.pass });
+    if (trzeci.host && trzeci.user) proby.push({ nazwa: 'zapas 2', host: trzeci.host, user: trzeci.user, pass: trzeci.pass });
+    let odmowy = [], ile_odp = 0, ileLog = 0;   /* ileLog: ile z nich to odmowa logowania [D-434] */
+    proby.forEach(pr => {
+      const a = adres(pr.host);
+      let kl;
+      try { kl = new Klient(a.host, a.port, '/mqtt', 'apka-' + Math.random().toString(16).slice(2, 10)); }
+      catch (e) { ile_odp++; odmowy.push(pr.nazwa + ': ' + e); return; }
+      try {
+        kl.connect({ useSSL: true, userName: pr.user, password: pr.pass, timeout: 7, cleanSession: true,
+          onSuccess: () => { try { kl.disconnect(); } catch(e){}
+            koniec(true, 'Połączono (' + pr.nazwa + '). Otwieram HMI…'); },
+          /* kod CONNACK brokera (4 złe hasło, 5 brak uprawnień, 3 niedostępny) jest w TREŚCI komunikatu Paho,
+             errorCode to numer błędu biblioteki (6 = „Bad Connack") - stąd wyrażenie [2026-09-09] */
+          /*  ⛔ LICZBA OD BROKERA I NUMER BIBLIOTEKI TO DWIE ROZNE RZECZY [audyt 20.09.2026].
+              `return code: N` w tresci = odpowiedz brokera (CONNACK) - tylko ona mowi cokolwiek
+              o koncie. Gdy jej nie ma, mamy WYLACZNIE numer wlasny biblioteki: o przekroczonym
+              czasie, zerwanym gniezdzie albo bledzie w nas samych. Mieszanie tych dwoch numeracji
+              kazalo czlowiekowi poprawiac haslo, ktore bylo dobre. */
+          onFailure: r => { const m = /return code:\s*(\d)/i.exec((r && r.errorMessage) || '');
+            const odBrokera = m ? +m[1] : null;
+            const opis = odBrokera !== null
+                       ? (KODY[odBrokera] || ('broker odmówił, kod ' + odBrokera))
+                       : (PAHO[r && r.errorCode] || 'nie udało się połączyć');
+            odmowy.push(pr.nazwa + ': ' + opis);
+            if (odBrokera !== null && LOGOWANIE(odBrokera)) ileLog++;
+            /*  ⛔ JEDNA PRZYCZYNA - JEDNO ZDANIE [D-434]. Konta na obu serwerach wiaze ta sama
+                nazwa i to samo haslo [D-416], wiec zla wpisana para odbija sie wszedzie naraz.
+                „serwer 1: zly login albo haslo · serwer 2: zly login albo haslo" kaze szukac
+                dwoch usterek tam, gdzie jest jedna - i do poprawienia w dziesiec sekund. */
+            /*  ⚠ Zbiorcze „zle haslo" TYLKO gdy KAZDA odmowa przyszla OD BROKERA i dotyczyla
+                konta. Wczesniej wystarczylo, ze wszystkie proby padly z dowolnego powodu - wiec
+                brak zasiegu tez konczyl sie porada „popraw haslo". */
+            if (++ile_odp >= proby.length)
+              koniec(false, (ileLog > 0 && ileLog === ile_odp)
+                     ? 'Zły login albo hasło. Sprawdź nazwę sterownika i hasło — przepisz dokładnie, razem z myślnikiem.'
+                     : odmowy.join(' · ')); } });
+      } catch (e) { ile_odp++; odmowy.push(pr.nazwa + ': ' + e); if (ile_odp >= proby.length) koniec(false, odmowy.join(' · ')); }
+    });
+  };
+})();
+</script>
+</body></html>
