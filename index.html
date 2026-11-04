@@ -76,16 +76,8 @@
     <div class="zapam"><input type="checkbox" id="zap" checked><label for="zap" style="margin:0">zapamiętaj na tym telefonie</label></div>
     <div class="rz"><button type="submit" id="idz">Otwórz HMI</button></div>
     <div class="stan" id="stan"></div>
-    <p class="mala">Nazwę i hasło sterownika dostajesz od serwisu. Klient steruje temperaturą, grzaniem, światłem i atrakcjami; menu serwisowe wymaga PIN-u sterownika.</p>
   </form>
 
-  <div class="karta" id="karta_inst">
-    <b>Aplikacja na ekranie głównym</b>
-    <p class="mala" id="inst_txt">Ikona na pulpicie, pełny ekran bez paska przeglądarki, działa też bez zasięgu (pokazuje ostatni stan).</p>
-    <div class="rz"><button type="button" id="inst" hidden>Zainstaluj</button></div>
-    <p class="mala" id="ios" hidden>iPhone/iPad: w Safari dotknij <b>Udostępnij</b> (kwadrat ze strzałką) → <b>Do ekranu początkowego</b>.</p>
-    <p class="mala" id="sw"></p>
-  </div>
 </main>
 <script>window.APKA_KLUCZ = 'qr:'; window.APKA_DROGA = 'mariaz';</script>   <!-- [B.0z-78] mariaz -->
 <script src="mqtt.min.js"></script>
@@ -152,20 +144,9 @@
   el('nazwa').addEventListener('input', () => { if (!userRecznie) el('user').value = loginZNazwy(el('nazwa').value); });
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready).then(() => {
-      el('sw').textContent = 'Gotowa do pracy bez sieci: pliki aplikacji są zapisane w telefonie.';
-    }).catch(() => { el('sw').textContent = ''; });
+    navigator.serviceWorker.register('sw.js').catch(() => {});   /* [04.11] bez napisu - karta usunięta */
   }
 
-  /* „Zainstaluj”: Chrome/Edge na Androidzie dają zdarzenie beforeinstallprompt;
-     Safari na iOS nie - tam zostaje podpowiedź. W trybie standalone karta znika. */
-  const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
-  if (standalone) el('karta_inst').hidden = true;
-  let prompt = null;
-  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); prompt = e; el('inst').hidden = false; });
-  el('inst').onclick = async () => { if (!prompt) return; prompt.prompt(); try { await prompt.userChoice; } catch(e){} prompt = null; el('inst').hidden = true; };
-  if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone) el('ios').hidden = false;
-  window.addEventListener('appinstalled', () => { el('inst_txt').textContent = 'Zainstalowana. Otwieraj z ikony na ekranie głównym.'; el('inst').hidden = true; });
 
   /* PRÓBA POŁĄCZENIA przed wejściem: broker odpowiada kodem, kod ma zdanie */
   /*  [D-434] KODY 4 I 5 ZNACZA TU TO SAMO: serwer nie przyjal logowania. Zmierzone na naszym

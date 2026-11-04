@@ -1162,7 +1162,7 @@ body.serwis #hmi-pokaz .srvbox{display:block}
    startowa (pytania prompt() w aplikacji nie są). */
 if (!/[?&]mqtt=1(&|$)/.test(location.search)) location.replace('hmi.html?mqtt=1' + (location.search ? '&' + location.search.slice(1) : ''));
 try { if (!localStorage.getItem('qr:odbior_mqtt') && !sessionStorage.getItem('qr:odbior_mqtt')) location.replace('index.html?login=1'); localStorage.setItem('qr:pwa', '1'); } catch (e) {}
-window.APKA_WERSJA = 'a97d6a407c';
+window.APKA_WERSJA = '3e798a74b4';
 window.APKA_KLUCZ = 'qr:';
 window.APKA_DROGA = 'mariaz';   /* [B.0z-78] mariaz QUIC + TLS (nakladka MQTT 5) */
 if ('serviceWorker' in navigator) { var _odsw = false;
@@ -1661,7 +1661,7 @@ if ('serviceWorker' in navigator) { var _odsw = false;
 window.HMI_SKLEJONE = true;
 /* STEMPEL BUDOWANIA - strona ma mowic, kiedy powstala; bez tego
    pytanie „czy to juz po poprawce" rozstrzyga sie proba i domyslem. */
-window.HMI_ZBUDOWANO = '2026-11-04 07:48';
+window.HMI_ZBUDOWANO = '2026-11-04 09:30';
 </script>
 <script>
 /* ===== EKRANY UZYTKOWNIKA (panel4_hala.html, bez zmian) ===== */
@@ -6334,7 +6334,11 @@ window.HMI_ZBUDOWANO = '2026-11-04 07:48';
           p.innerHTML = '<span id="chmura-st"></span>'
             + '<span id="chmura-br"></span>'
             + '<span id="chmura-ob"><b id="chmura-naz" style="font-weight:600"></b><i class="chm-t" style="font-style:normal">obiekt: </i><select id="chmura-sel" style="font:inherit" onchange="window.MOST_JS.wybierzObiekt(this.value)"></select></span>'
-            + '<span id="chmura-ust" title="ustawienia" style="margin-left:auto;cursor:pointer;font-size:16px;line-height:1;padding:0 2px;flex:0 0 auto">&#9881;</span>'
+            /*  [04.11.2026, Tomasz: „na głównym pasku u góry dodaj sterownik/hasło bezpośrednio z głównego ekranu, tylko
+                czcionka czytelna”] w aplikacji (PWA) wejście do logowania wprost z paska - to samo co „Zmień sterownik /
+                hasło” w USTAWIENIACH; 13 px półgrubo (pasek apki ma 11 px), przed kołem zębatym. Bez PWA (most) - nie ma. */
+            + (_pwa ? '<a id="chmura-log" href="index.html?login=1" style="margin-left:auto;flex:0 0 auto;white-space:nowrap;background:#1e6fd9;color:#fff;text-decoration:none;font:600 13px/1.2 system-ui,sans-serif;padding:3px 9px;border-radius:7px">sterownik / hasło</a>' : '')
+            + '<span id="chmura-ust" title="ustawienia" style="margin-left:' + (_pwa ? '4px' : 'auto') + ';cursor:pointer;font-size:16px;line-height:1;padding:0 2px;flex:0 0 auto">&#9881;</span>'
             /* [D-535 pkt 3] „dwa sterowniki pod jedną nazwą” - własny wiersz paska (flex-basis 100 %), klient i serwis */
             + '<span id="chmura-dwa" hidden style="flex:1 0 100%;order:9;color:#ff8a80;font-weight:600"></span>';
           document.body.appendChild(p);
