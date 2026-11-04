@@ -1162,7 +1162,7 @@ body.serwis #hmi-pokaz .srvbox{display:block}
    startowa (pytania prompt() w aplikacji nie są). */
 if (!/[?&]mqtt=1(&|$)/.test(location.search)) location.replace('hmi.html?mqtt=1' + (location.search ? '&' + location.search.slice(1) : ''));
 try { if (!localStorage.getItem('qr:odbior_mqtt') && !sessionStorage.getItem('qr:odbior_mqtt')) location.replace('index.html?login=1'); localStorage.setItem('qr:pwa', '1'); } catch (e) {}
-window.APKA_WERSJA = '3e798a74b4';
+window.APKA_WERSJA = '6f307ddb73';
 window.APKA_KLUCZ = 'qr:';
 window.APKA_DROGA = 'mariaz';   /* [B.0z-78] mariaz QUIC + TLS (nakladka MQTT 5) */
 if ('serviceWorker' in navigator) { var _odsw = false;
